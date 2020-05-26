@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src='http://connect.facebook.net/en_US/all.js'></script>
+
+    <style>
+        a {
+            text-decoration: none;
+        }
+
+        a.clear {
+            background-color: white;
+            color: #3b5998;
+            border: 2px solid #3b5998;
+            padding: 9px 20px;
+            text-align: center;
+            display: inline-block;
+            font-size: 14px;
+        }
+
+        .nav.nav-tabs.nav-justified {
+            border-bottom: 2px solid #3b5998;
+            background-color: #FFFFFF;
+            color: #000000;
+            font-size: 14px;
+        }
+
+        .nav-tabs>li.active>a {
+            background-color: #3b5998;
+            color: #FFFFFF;
+            font-size: 14px;
+        }
+
+        .fbsearch {
+            padding-left: 15px;
+            padding-top: 15px;
+            font-size: 14px;
+            display: block;
+            color: #3b5998;
+        }
+
+        .yellow-star {
+            color: yellow;
+        }
+
+        /* Slide mechanism */
+        div.slide-div {
+            position: relative;
+            width: 100%;
+        }
+
+        #responseTable {
+            left: 0;
+        }
+
+        #detailsTable {
+            right: 0;
+        }
+
+        #responseTable.ng-hide {
+            left: 100%;
+        }
+
+        #detailsTable.ng-hide {
+            right: 100%;
+        }
+
+        .ng-hide-remove {
+            transition: all linear 0.5s;
+        }
+    </style>
+</head>
+
+<body ng-app="myApp" ng-controller="myCtrl">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-animate.js"></script>
+    <script src="http://google-code-prettify.googlecode.com/svn/trunk/src/prettify.js"></script>
+    <script src="https://rawgit.com/grevory/angular-local-storage/master/dist/angular-local-storage.min.js"></script>
+    <script>
+        window.fbAsyncInit = function () {
+            FB.init({
+                appId: '1447454715299593',
+                xfbml: true,
+                version: 'v2.8'
+            });
+        };
+        (function (d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) { return; }
+            js = d.createElement(s); js.id = id;
+            js.src = "//connect.facebook.net/en_US/sdk.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+    </script>
+
+    <!-- Initialize the Form -->
+    <form id="thisForm" method="get" role="form">
+        <!-- Overarching container that covers the entire Search and Navigation Bar -->
+        <div class="container-fluid">
+            <!-- Search Bar -->
+            <div class="row">
+                <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12 fbsearch">
+                    FB Search
+                </div>
+                <div class="col-lg-8 col-md-8 col-sm-12 col-xs-12">
+
+                    <input type="text" id="keyword" ng-model="keyword" required placeholder="type something..."
+                        style="width:50%; height: 40px; font-size: 14px;">
+                    <a id="submit" href="#" ng-click="showResponse(); getResponse()"><span
+                            class="glyphicon glyphicon-search"></span></a>&nbsp;&nbsp;
+                    <a id="clear" class="clear" href="#" ng-click="resetForm()">Clear</a>
+                </div>
+            </div>
+        </div>
+    </form>
+    <!-- Navigation Bar -->
+    <div class="container-fluid">
+        <ul class="nav nav-tabs nav-justified col-lg-8 col-md-8 col-sm-12 col-xs-12">
+            <li class="active"><a data-toggle="tab" href="#user"
+                    ng-click="changeTab();showUsers();getResponse()">Users</a></li>
+            <li><a data-toggle="tab" href="#page" ng-click="changeTab();showPages(); getResponse()"> Pages</a></li>
+            <li><a data-toggle="tab" href="#event" ng-click="changeTab();showEvents(); getResponse()">Events</a></li>
+            <li><a data-toggle="tab" href="#place" ng-click="changeTab();showPlaces(); getResponse()">Places</a></li>
+            <li><a data-toggle="tab" href="#group" ng-click="changeTab();showGroups(); getResponse()">Groups</a></li>
+            <li><a data-toggle="tab" href="#favorite"
+                    ng-click="changeTab();showFavorites();clickFavorites()">Favorites</a></li>
+        </ul>
+        <div class="tab-content">
+            <div id="user" class="tab-pane fade in active">
+            </div>
+            <div id="page" class="tab-pane fade">
+            </div>
+            <div id="event" class="tab-pane fade">
+            </div>
+            <div id="place" class="tab-pane fade">
+            </div>
+            <div id="group" class="tab-pane fade">
+            </div>
+            <div id="favorite" class="tab-pane fade">
+            </div>
+        </div>
+    </div>
+    <br>
+
+    <!-- First View: Response -->
+    <!-- when hideLeft is false, left will display -->
+    <div id="responseTable" class="slide-div" ng-hide="hideLeft">
+        <!-- Progress Bar for Response -->
+        <div ng-show="showProgress">
+            <br><br><br><br><br><br>
+            <div class="progress">
+                <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="40"
+                    aria-valuemin="0" aria-valuemax="100" style="width:50%">
+                </div>
+            </div>
+        </div>
+        <div ng-hide=showProgress>
+            <!-- Loaded Table -->
+            <!-- if response is null, generate a well saying table not found -->
+            <div class="well well-lg" ng-hide="showResponseTable">No data found</div>
+            <div ng-show="showResponseTable">
+                <div ng-hide="showFavoritesTable">
+                    <div class="table-responsive">
+                        <!-- Response table -->
+                        <table class='table table-hover'>
+                            <tr>
+                                <th>#</th>
+                                <th>Profile Photo</th>
+                                <th>Name</th>
+                                <th>Favorites</th>
+                                <th>Details</th>
+                            </tr>
+                            <tr ng-repeat="responseEntry in outputResponse">
+                                <td><b>{{$index+1}}</b></td>
+                                <td><img ng-src="{{responseEntry.picture.data.url}}" class='img-circle' width='30'
+                                        height='30'></td>
+                                <td>{{responseEntry.name}}</td>
+                                <td><button class="btn btn-default btn-sm"
+                                        ng-click="clickStar(responseEntry.picture.data.url, responseEntry.name, tabName, responseEntry.id, toggleStarColor);">
+                                        <span ng-class="getStar(responseEntry.id)"></span> </button>
+                                </td>
+                                <td><button class="btn btn-default btn-sm"
+                                        ng-click="getDetails(responseEntry.id); switchSides()"> <span
+                                            class="glyphicon glyphicon-chevron-right"></span> </button>
+                                </td>
+                            </tr>
+                        </table>
+                        <!-- End Response Table -->
+                    </div>
+
+                    <p style="text-align:center">
+                        <!-- Previous Button -->
+                        <span id="previousButton" ng-show="showPrevious">
+                            <button type="button" class="btn btn-default" ng-click=getPrevious()>Previous</button>
+                        </span>
+                        <!-- Next Button -->
+                        <span id="nextButton" ng-show="showNext">
+                            <button type="button" class="btn btn-default" ng-click=getNext()>Next</button>
+                        </span>
+                    </p>
+                </div>
+                <!-- Favorites Table -->
+                <div class="table-responsive" ng-show="showFavoritesTable">
+                    <table class='table table-hover'>
+                        <tr>
+                            <th>#</th>
+                            <th>Profile Photo</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Favorite</th>
+                            <th>Details</th>
+                        </tr>
+                        <tr ng-repeat="favoriteEntry in favoriteArray">
+                            <td><b>{{$index+1}}</b></td>
+                            <td><img ng-src="{{favoriteEntry.photo}}" class='img-circle' width='30' height='30'></td>
+                            <td>{{favoriteEntry.name}}</td>
+                            <td>{{favoriteEntry.type}}</td>
+                            <td><button class="btn btn-default btn-sm" ng-click="clickTrash(favoriteEntry.id)"> <span
+                                        class="glyphicon glyphicon glyphicon-trash"></span> </button>
+                            </td>
+                            <td><button class="btn btn-default btn-sm"
+                                    ng-click="getDetails(favoriteEntry.id); switchSides()"> <span
+                                        class="glyphicon glyphicon-chevron-right"></span> </button>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <!-- End Favorites Table -->
+            </div>
+        </div>
+    </div>
+
+    <!----- Second View: Details ---->
+    <!-- when hideRight is false, right will display -->
+    <div id="detailsTable" class="slide-div" ng-hide="hideRight">
+        <!-- Top Section -->
+        <div id="topArea">
+            <!-- Back Button -->
+            <div id="backButton" style="float: left">
+                <button type="button" class="btn" ng-click="switchSides();"><span
+                        class="glyphicon glyphicon-chevron-left"></span>Back</button>
+            </div>
+            <div id="fbAndStarButton" style="float: right">
+                <!-- Add to Favorites, Post to Facebook -->
+                <button class="btn btn-default btn-sm"
+                    ng-click="clickStar(postPhoto, postName, tabName, postId, toggleStarColor);"> <span
+                        ng-class="getStar(postId)"></span> </button>
+                &nbsp;&nbsp;
+                <button class="btn btn-default btn-sm" ng-click="postToFacebook();"> <img class="img-responsive"
+                        src="http://cs-server.usc.edu:45678/hw/hw8/images/facebook.png"
+                        style="height:20px;width:20px;" /> </button>
+            </div>
+            <br>
+            <br>
+        </div>
+        <br>
+
+        <!-- Second View: Left Panel -->
+        <div class="panel panel-default col-lg-6 col-md-6 col-sm-12 col-xs-12">
+            <div class="panel-heading">
+                <h4 class="panel-title">Albums
+                </h4>
+            </div>
+            <!-- Left Progress Bar -->
+            <div class="progress" ng-show="showProgressDetails">
+                <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="40"
+                    aria-valuemin="0" aria-valuemax="100" style="width:50%">
+                </div>
+            </div>
+            <div ng-hide="showProgressDetails">
+                <!-- If response is null,  generate a well saying table not found -->
+                <div class="well well-lg" ng-hide="showAlbumsTable">No data found</div>
+                <!-- Albums -->
+                <div class="panel-body" ng-show="showAlbumsTable">
+                    <div class="panel-group" id="accordion">
+                        <div class="panel panel-default" ng-repeat="albumEntry in outputAlbums">
+                            <div class="panel-heading">
+                                <h4 class="panel-title">
+                                    <a data-toggle="collapse" data-parent="#accordion" ng-href="#{{$index}}">
+                                        {{albumEntry.name}}
+                                    </a>
+                                </h4>
+                            </div>
+                            <div id={{$index}} class="panel-collapse" ng-class="collapseClass($index)">
+                                <img ng-src="{{hdUrl[$index]}}" class='img-rounded img-responsive'>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Second View: Right Panel -->
+        <div class="panel panel-default col-lg-6 col-md-6 col-sm-12 col-xs-12">
+            <div class="panel-heading">
+                <h4 class="panel-title">Posts
+                </h4>
+            </div>
+
+            <!-- Right Progress Bar -->
+            <div class="progress" ng-show="showProgressDetails">
+                <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="40"
+                    aria-valuemin="0" aria-valuemax="100" style="width:50%">
+                </div>
+            </div>
+            <div ng-hide="showProgressDetails">
+                <!-- If response is null, generate a well saying table not found -->
+                <div class="well well-lg" ng-hide="showPostsTable">No data found</div>
+                <!-- Posts -->
+                <div class="panel-group" ng-show="showPostsTable">
+
+                    <div class="panel panel-default" ng-repeat="postEntry in outputPosts">
+                        <div class="panel-body">
+                            <table id="postsTable" class="table-responsive" width="100%">
+                                <tr>
+                                    <th rowspan="2" width="15%"><img ng-src="{{postPhoto}}" class='img-rounded'
+                                            width='30' height='30'> </th>
+                                    <th><b>{{postName}} </b></th>
+                                </tr>
+                                <tr>
+                                    <td>{{ postEntry.created_time | date: "y-MM-dd h:mm:ss" }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2">{{postEntry.message}}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Angular JS functions
+        var app = angular.module('myApp', ['ngAnimate', 'LocalStorageModule']);
+        var position;
+        navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
+        console.log(position);
+
+        app.controller('myCtrl', ['$scope', '$http', 'localStorageService', '$window', function ($scope, $http, localStorageService, $window) {
+
+            console.log(position);
+            console.log(keyword);
+            var hdUrlIndex = 0;
+            $scope.tabName = "user";
+            $scope.showProgress = false;
+            $scope.showResponseTable = false;
+            $scope.showAlbumsTable = false;
+            $scope.showPostsTable = false;
+            $scope.showNext = false;
+            $scope.showPrevious = false;
+            $scope.showProgressDetails = false;
+            $scope.hideRight = true;
+            $scope.hideLeft = true;
+            $scope.hdUrl = [];
+            $scope.favoriteArray = [];
+            $scope.toggleStarColor = false;
+
+            $scope.getResponse = function () {
+                console.log(position);
+                console.log($scope.keyword);
+                console.log($scope.tabName);
+
+                $scope.showProgress = true;
+                $scope.showResponseTable = false;
+
+                $http.get('http://Sample-env-2.ex8irm6ngz.us-west-2.elasticbeanstalk.com', {
+                    params: { position: position, tabName: $scope.tabName, keyword: $scope.keyword }
+                }).then(function (responseJSON) {
+                    $scope.showProgress = false;
+                    console.log(JSON.stringify(responseJSON));
+                    $scope.outputResponse = responseJSON.data.data;
+                    console.log($scope.outputResponse);
+
+                    //if there is no response data, output "no data" message
+                    if ($scope.outputResponse[0] == null) {
+                        console.log("no response data")
+                        $scope.showResponseTable = false;
+                    }
+                    else {
+                        $scope.showResponseTable = true;
+                    }
+
+                    //if tab name is not favorites, show the response table
+                    if ($scope.tabName != "favorite") {
+                        $scope.showFavoritesTable = false;
+                    }
+                    else {
+                        $scope.showFavoritesTable = true;
+                    }
+
+                    //if there are next pages, output the buttons
+                    if (responseJSON.data.paging != null) {
+                        $scope.showButton(responseJSON.data.paging);
+                    }
+                    else {
+                        $scope.showNext = false;
+                        $scope.showPrevious = false;
+                    }
+                })
+            };
+            $scope.getNext = function () {
+                console.log("nextpage");
+                console.log($scope.nextPage);
+                $scope.showProgress = true;
+
+                $http.get($scope.nextPage).then(function (responseJSON) {
+                    $scope.showProgress = false;
+                    console.log(JSON.stringify(responseJSON));
+                    $scope.outputResponse = responseJSON.data.data;
+
+                    if (responseJSON.data.paging != null) {
+                        $scope.showButton(responseJSON.data.paging);
+                    }
+                    else {
+                        $scope.showNext = false;
+                        $scope.showPrevious = false;
+                    }
+
+                })
+            };
+            $scope.getPrevious = function () {
+                console.log("previous page");
+                console.log($scope.previousPage);
+                $scope.showProgress = true;
+
+                $http.get($scope.previousPage).then(function (responseJSON) {
+                    $scope.showProgress = false;
+                    console.log(JSON.stringify(responseJSON));
+                    $scope.outputResponse = responseJSON.data.data;
+
+                    if (responseJSON.data.paging != null) {
+                        $scope.showButton(responseJSON.data.paging);
+                    }
+                    else {
+                        $scope.showNext = false;
+                        $scope.showPrevious = false;
+                    }
+                })
+            };
+            $scope.getDetails = function (detail) {
+                console.log(detail);
+                $scope.showProgressDetails = true;
+                $scope.hdUrl = [];
+                hdUrlIndex = 0;
+
+                $http.get('http://Sample-env-2.ex8irm6ngz.us-west-2.elasticbeanstalk.com', {
+                    params: { detail: detail }
+                }).then(function (detailsJSON) {
+
+                    $scope.showProgressDetails = false;
+                    console.log(JSON.stringify(detailsJSON));
+
+                    // If there is no details or albums data, output "no data" message
+                    if (detailsJSON.data.albums == null) {
+                        console.log("no albums data")
+                        $scope.showAlbumsTable = false;
+                    }
+                    else {
+                        $scope.showAlbumsTable = true;
+                    }
+                    if (detailsJSON.data.posts == null) {
+                        console.log("no details data")
+                        $scope.showPostsTable = false;
+                    }
+                    else {
+                        $scope.showPostsTable = true;
+                    }
+
+                    $scope.postName = detailsJSON.data.name;
+                    $scope.postPhoto = detailsJSON.data.picture.data.url;
+                    $scope.postId = detailsJSON.data.id;
+                    $scope.outputAlbums = detailsJSON.data.albums.data;
+                    $scope.outputPosts = detailsJSON.data.posts.data;
+
+                    // Construct detail page URL
+                    $scope.postUrl = "https://www.facebook.com/" + $scope.postName + "-" + $scope.postId + "/";
+                    console.log($scope.postUrl);
+
+                    // Put HD photos into an array
+                    // Loop over all albums
+                    for (var i = 0; i < detailsJSON.data.albums.data.length; i++) {
+                        // Get current album
+                        var currAlbum = detailsJSON.data.albums.data[i];
+                        // Loop over all photos in album
+                        for (var j = 0; j < currAlbum.photos.data.length; j++) {
+                            // Get current photo
+                            var currPhoto = currAlbum.photos.data[j];
+                            $scope.getPicture(currPhoto.id);
+                        }
+                    }
+                })
+            };
+            $scope.getPicture = function (id) {
+                console.log("get picture");
+                console.log(id);
+
+                $http.get('http://Sample-env-2.ex8irm6ngz.us-west-2.elasticbeanstalk.com', {
+                    params: { picture: id }
+                }).then(function (pictureJSON) {
+                    console.log(JSON.stringify(pictureJSON));
+
+                    $scope.hdUrl[hdUrlIndex] = pictureJSON.data.data.url;
+                    hdUrlIndex++;
+                    console.log($scope.hdUrl);
+                })
+            };
+            $scope.showButton = function (currentPage) {
+                if (currentPage.hasOwnProperty('next')) {
+                    $scope.nextPage = currentPage.next;
+                    $scope.showNext = true;
+                }
+                else {
+                    $scope.showNext = false;
+                }
+                if (currentPage.hasOwnProperty('previous')) {
+                    $scope.previousPage = currentPage.previous;
+                    $scope.showPrevious = true;
+                }
+                else {
+                    $scope.showPrevious = false;
+                }
+            };
+            $scope.showUsers = function () {
+                $scope.tabName = "user";
+                $scope.showFavoritesTable = false;
+            };
+            $scope.showPages = function () {
+                $scope.tabName = "page";
+                $scope.showFavoritesTable = false;
+            };
+            $scope.showEvents = function () {
+                $scope.tabName = "event";
+                $scope.showFavoritesTable = false;
+            };
+            $scope.showPlaces = function () {
+                $scope.tabName = "place";
+                $scope.showFavoritesTable = false;
+            };
+            $scope.showGroups = function () {
+                $scope.tabName = "group";
+                $scope.showFavoritesTable = false;
+            };
+            $scope.showFavorites = function () {
+                $scope.tabName = "favorite";
+                $scope.showFavoritesTable = true;
+            };
+            $scope.showResponse = function () {
+                $scope.hideRight = true;
+                $scope.hideLeft = false;
+            };
+            $scope.switchSides = function () {
+                if ($scope.hideRight) {
+                    $scope.hideRight = false;
+                    $scope.hideLeft = true;
+                }
+                else {
+                    $scope.hideRight = true;
+                    $scope.hideLeft = false;
+                }
+            };
+            $scope.changeTab = function () {
+                $scope.hideRight = true;
+                $scope.hideLeft = false;
+            };
+            $scope.collapseClass = function (index) {
+                console.log("index: " + index);
+                if (index == 0) {
+                    return "collapse in";
+                }
+                else {
+                    return "collapse";
+                }
+            }
+            $scope.postToFacebook = function () {
+                FB.ui({
+                    app_id: '1447454715299593',
+                    method: 'feed',
+                    link: $scope.postUrl,
+                    picture: $scope.postPhoto,
+                    name: $scope.postName,
+                    caption: 'FB SEARCH FROM USC CSCI571',
+                }, function (response) {
+                    if (response && !response.error_message)
+                        alert("Posted Successfully");
+                    else
+                        alert("Not Posted");
+                });
+            };
+            $scope.clickStar = function (photo, name, type, id, star) {
+                console.log(photo);
+                console.log(name);
+                console.log(type);
+                console.log(id);
+                console.log(star);
+                console.log(localStorageService.get(id));
+
+                // If the entry is not there, add it. 
+                // Else if the entry is not there, remove it 
+                if (localStorageService.get(id) == null) {
+
+                    var object = { photo: photo, name: name, type: type, id: id, star: star };
+                    console.log(object);
+
+                    localStorageService.set(id, object);
+
+                    // Try get method to see if set method worked
+                    // The object should automatically get converted to a string in the LocalStorage if successful
+                    var test = localStorageService.get(id);
+                    console.log(test);
+                    // See if object made it to Local Storage
+                    console.log($window.localStorage);
+                }
+                else {
+                    localStorageService.remove(id);
+                    console.log($window.localStorage);
+                }
+            };
+            $scope.getStar = function (id) {
+                //    console.log("ls."+id);
+                //      console.log($window.localStorage.getItem("ls."+id));
+
+                // If star exists, that means the object is in Favorites 
+                if ($window.localStorage.getItem("ls." + id) != null) {
+                    return "glyphicon glyphicon-star yellow-star";
+                    //   var parsedValue = JSON.parse($window.localStorage.getItem($window.localStorage.key(id)));
+                    // $scope.toggleStarColor == true;
+                }
+                else {
+                    return "glyphicon glyphicon-star-empty";
+                    //   $scope.toggleStarColor == false;
+                }
+            }
+            // Use this function to parse the Local Storage
+            $scope.clickFavorites = function () {
+                // Redraw the Favorites array every time
+                $scope.favoriteArray = [];
+                console.log($window.localStorage);
+
+                // For each object key in Local Storage
+                for (var i = 0; i < $window.localStorage.length; i++) {
+                    console.log($window.localStorage.key(i));
+                    console.log($window.localStorage.getItem($window.localStorage.key(i)));
+                    // Parse the key's value
+                    var parsedValue = JSON.parse($window.localStorage.getItem($window.localStorage.key(i)));
+                    // Push the value into Favorites array
+                    $scope.favoriteArray.push(parsedValue);
+                    console.log($scope.favoriteArray);
+                }
+            };
+            // Remove the object and redraw the Favorites table 
+            $scope.clickTrash = function (id) {
+
+                localStorageService.remove(id);
+
+                // Redraw the table after removal of object
+                $scope.favoriteArray = [];
+                console.log($window.localStorage);
+
+                // For each object key in Local Storage
+                for (var i = 0; i < $window.localStorage.length; i++) {
+                    console.log($window.localStorage.key(i));
+                    console.log($window.localStorage.getItem($window.localStorage.key(i)));
+                    // Parse the key's value
+                    var parsedValue = JSON.parse($window.localStorage.getItem($window.localStorage.key(i)));
+                    // Push the value into Favorites array
+                    $scope.favoriteArray.push(parsedValue);
+                    console.log($scope.favoriteArray);
+                }
+            };
+            $scope.resetForm = function () {
+                $scope.hideRight = true;
+                $scope.hideLeft = true;
+                document.getElementById("keyword").value = "";
+                $scope.keyword = "";
+            };
+        }]);
+
+        // Pure JS functions
+        function onSuccess(pos) {
+            position = pos.coords.latitude + "," + pos.coords.longitude;
+            console.log(position);
+        };
+        function onError(err) {
+            console.warn(`ERROR(${err.code}): ${err.message}`);
+        };
+        var options = {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        };
+    </script>
+</body>
+</html>
